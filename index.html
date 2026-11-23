@@ -1,0 +1,2220 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>教會服事排班小幫手（多人協作版）</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .tab-btn.active {
+      background-color: #0f172a;
+      color: #ffffff;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shrink-0">
+          服
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">教會服事排班小幫手</h1>
+          <p class="text-xs text-slate-500">分組回報・LINE 分享・智慧排班・JPG 產圖</p>
+        </div>
+      </div>
+
+      <!-- Month, Weekday & Sync Controls -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <input id="monthInput" type="month" class="text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        <select id="weekdaySelect" class="text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" title="預設聚會日">
+          <option value="6">每週六</option>
+          <option value="0">每週日</option>
+        </select>
+        <button id="btnResetDates" class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 transition">
+          重設日期
+        </button>
+        <button id="btnOpenSync" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 transition flex items-center gap-1.5">
+          <span id="syncDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <span id="syncBtnLabel">多人協作同步</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 pb-3 pt-1 flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
+      <button data-tab="availability" class="tab-btn active px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition flex items-center gap-1.5">
+        <span>1. 分組回報與 LINE 分享</span>
+        <span id="badgeUnreplied" class="text-xs px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-900 font-bold">0</span>
+      </button>
+      <button data-tab="schedule" class="tab-btn px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 whitespace-nowrap transition">
+        2. 排班與調整
+      </button>
+      <button data-tab="export" class="tab-btn px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 whitespace-nowrap transition">
+        3. 閱覽與產出 JPG
+      </button>
+      <button data-tab="members" class="tab-btn px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 whitespace-nowrap transition">
+        4. 服事人力表
+      </button>
+      <button data-tab="people" class="tab-btn px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 whitespace-nowrap transition">
+        5. 人力資料庫
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+    <!-- Date Pills Bar -->
+    <section class="bg-white rounded-xl border border-slate-200 p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">本月服事日期：</span>
+        <div id="datePillsContainer" class="flex items-center gap-1.5 flex-wrap"></div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <input id="customDateInput" type="text" enterkeyhint="done" placeholder="新增日期如 12/25" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 w-32 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+        <button id="btnAddDate" class="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition">
+          + 新增
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 1: 分組回報與 LINE 分享 -->
+    <section id="tab-availability" class="tab-panel space-y-5">
+      <!-- LINE Message Generators -->
+      <div class="grid grid-cols-1 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between gap-3">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <h2 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                每月 LINE 詢問訊息
+              </h2>
+              <span class="text-xs text-slate-500">可複製或直接開啟 LINE 分享</span>
+            </div>
+            <textarea id="lineAskText" rows="5" class="w-full text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900"></textarea>
+          </div>
+          <div class="flex items-center justify-end gap-2 flex-wrap">
+            <button id="btnShareAskLine" class="px-3.5 py-2 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm font-medium transition">
+              直接分享到 LINE
+            </button>
+            <button id="btnCopyAsk" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium transition">
+              複製詢問訊息
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reply link for members -->
+      <div class="bg-sky-50 rounded-xl border border-sky-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-sm font-bold text-slate-900">同工回覆網址</h2>
+          <p class="text-xs text-slate-600 mt-0.5">同工打開後選自己的名字、勾選日期送出，結果會自動出現在下方表格（仍可手動修改）。詢問訊息已附上這個連結。</p>
+          <a id="replyUrlLink" href="#" target="_blank" rel="noopener" class="text-xs text-sky-700 underline break-all"></a>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="btnCopyReplyUrl" class="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium transition">複製網址</button>
+          <a id="btnOpenReply" href="reply.html" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg border border-sky-600 text-sky-700 hover:bg-sky-100 text-xs font-medium transition">開啟回覆頁</a>
+        </div>
+      </div>
+
+      <!-- Filter Bar for Grouped Availability -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">各服事群組・本月禮拜六時間設定</h2>
+          <p class="text-xs text-slate-500 mt-0.5">依工作內容分組顯示，同工或組長可直接勾選本月可配合的日期。</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <select id="filterRoleGroup" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+            <option value="all">全部工作群組</option>
+          </select>
+          <select id="filterStatus" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+            <option value="all">全部狀態</option>
+            <option value="unreplied">只看未回報</option>
+            <option value="replied">只看已回報</option>
+          </select>
+          <input id="searchMember" type="text" placeholder="搜尋姓名..." class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 w-32 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <button id="btnMarkAllAvailable" class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 transition">
+            全部設為皆可
+          </button>
+          <button id="btnClearReplies" class="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50 transition">
+            清空本月回報
+          </button>
+        </div>
+      </div>
+
+      <!-- Grouped Availability Cards -->
+      <div id="groupedAvailContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- TAB 2: 排班與調整 -->
+    <section id="tab-schedule" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">本月服事時間表編輯</h2>
+          <p class="text-xs text-slate-500 mt-0.5">可先按「智慧自動排班」，再手動下拉微調。選單會顯示同工本月狀態（✓ 可配合 / ? 未回報 / ✗ 不可）。</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btnAutoSchedule" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 shadow-sm">
+            ⚡ 智慧自動排班
+          </button>
+          <button id="btnClearSchedule" class="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs sm:text-sm font-medium transition">
+            清空排班
+          </button>
+          <button id="btnGoExport" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-medium transition">
+            前往產出 JPG →
+          </button>
+        </div>
+      </div>
+
+      <div id="scheduleWarnings" class="hidden bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-xs sm:text-sm"></div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr id="schedTableHead" class="bg-slate-900 text-white text-xs sm:text-sm"></tr>
+            </thead>
+            <tbody id="schedTableBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">本月各同工服事次數統計</h3>
+        <div id="workloadSummary" class="flex flex-wrap gap-2"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 閱覽與產出 JPG -->
+    <section id="tab-export" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-4">
+          <label class="flex items-center gap-2 text-xs sm:text-sm text-slate-700 cursor-pointer">
+            <input id="chkShowTitle" type="checkbox" class="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+            <span>加上月份標題</span>
+          </label>
+          <input id="exportTitleInput" type="text" value="11月服事表" class="text-xs sm:text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 w-44 disabled:opacity-40" />
+          <label class="flex items-center gap-2 text-xs sm:text-sm text-slate-700 cursor-pointer">
+            <input id="chkClassicStyle" type="checkbox" checked class="rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+            <span>經典黑白高對比風格（同範例圖）</span>
+          </label>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btnDownloadJpg" class="px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold transition shadow-sm">
+            下載最終服事表 (.jpg)
+          </button>
+          <button id="btnDownloadPng" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs sm:text-sm font-medium transition">
+            下載 PNG
+          </button>
+          <button id="btnCopyLineSummary" class="px-3 py-2 rounded-lg border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs sm:text-sm font-medium transition">
+            複製純文字公告
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-slate-200/70 rounded-xl p-4 sm:p-6 flex justify-center overflow-x-auto">
+        <canvas id="scheduleCanvas" class="max-w-full h-auto shadow-lg rounded-sm bg-white"></canvas>
+      </div>
+    </section>
+
+    <!-- TAB 4: 服事人力表（依服事項目） -->
+    <section id="tab-members" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">服事人力表（依服事項目）</h2>
+          <p class="text-xs text-slate-500 mt-0.5">以服事項目查看與調整人員，和「5. 人力資料庫」是同一份資料，兩邊會連動。</p>
+          <p class="text-xs mt-1"><span class="text-slate-900 font-semibold">黑字＝穩定</span>・<span class="text-blue-600 font-semibold">藍字＝可支援</span>・<span class="text-orange-600 font-semibold">橘字＝培養</span>・<span class="text-slate-400 line-through">灰字＝暫停</span>（不會自動排入）・<span class="text-slate-600">點名字可修改</span></p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="newRoleInput" type="text" enterkeyhint="done" placeholder="新增工作分類（如：招待）" class="text-xs sm:text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 w-44 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <button id="btnAddRole" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs sm:text-sm font-medium hover:bg-slate-800 transition">+ 新增分類</button>
+          <button id="btnExportJson" class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700">匯出備份</button>
+          <label class="text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 cursor-pointer">
+            匯入備份
+            <input id="importJsonInput" type="file" accept=".json" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <div id="hrCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- TAB 5: 人力資料庫（以人為單位） -->
+    <section id="tab-people" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
+        <div>
+          <h2 class="text-sm sm:text-base font-bold text-slate-900">人力資料庫</h2>
+          <p class="text-xs text-slate-500 mt-0.5">以人為單位管理：名字後面是服事狀況，下面是他服事的項目。點「＋ 服事項目」再點項目即可加入；點項目標籤可改「可支援／培養／暫停此項」或移除。和「4. 服事人力表」連動。</p>
+          <p class="text-xs mt-1"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">穩定</span> 正常排班・<span class="px-1.5 py-0.5 rounded bg-orange-100 text-orange-800 font-semibold">培養</span> 排在最後順位・<span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 font-semibold">暫停</span> 不排班、回覆頁不顯示</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="peopleSearch" type="text" enterkeyhint="search" placeholder="搜尋姓名..." class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 w-28 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <select id="peopleStatusFilter" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
+            <option value="all">全部狀況</option>
+            <option value="stable">只看穩定</option>
+            <option value="training">只看培養</option>
+            <option value="paused">只看暫停</option>
+          </select>
+          <select id="peopleRoleFilter" class="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
+            <option value="all">全部項目</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+          <input id="newPersonInput" type="text" enterkeyhint="done" placeholder="新增同工姓名" class="flex-1 text-xs sm:text-sm border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+          <button id="btnAddPerson" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs sm:text-sm font-medium hover:bg-slate-800 transition shrink-0">+ 新增同工</button>
+        </div>
+        <div id="peopleSummary" class="text-xs text-slate-600"></div>
+      </div>
+
+      <div id="peopleList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+    </section>
+
+  </main>
+
+  <!-- 連線與分享連結 -->
+  <div id="syncModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">連線與分享連結</h3>
+        <button id="btnCloseSync" class="text-slate-400 hover:text-slate-700 text-lg font-bold px-2">×</button>
+      </div>
+      <div id="syncStatusText" class="text-xs text-slate-500"></div>
+      <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 space-y-1.5">
+        <div class="text-xs font-bold text-rose-800">管理連結（只給排班同工）</div>
+        <p class="text-[11px] text-rose-700">拿到這個連結的人可以看到並修改全部內容，請不要貼到同工群組。</p>
+        <div id="adminLinkText" class="text-[11px] text-slate-700 break-all bg-white rounded-lg px-2 py-1.5 border border-rose-100"></div>
+        <button id="btnCopyAdminLink" class="text-xs px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium">複製管理連結</button>
+      </div>
+      <div class="rounded-xl border border-sky-200 bg-sky-50 p-3 space-y-1.5">
+        <div class="text-xs font-bold text-sky-800">回覆連結（給所有同工）</div>
+        <p class="text-[11px] text-sky-700">只能看到名字、服事項目與日期，只能送出自己的回覆。LINE 詢問訊息已自動附上。</p>
+        <div id="replyLinkText" class="text-[11px] text-slate-700 break-all bg-white rounded-lg px-2 py-1.5 border border-sky-100"></div>
+        <button id="btnCopyReplyLink" class="text-xs px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-medium">複製回覆連結</button>
+      </div>
+      <div class="flex justify-end pt-1">
+        <button id="btnPullCloud" class="text-xs px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-100 font-medium text-slate-700">重新載入雲端資料</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 鎖定畫面：沒有管理連結時 -->
+  <div id="lockScreen" class="fixed inset-0 z-[60] hidden bg-slate-50 flex items-center justify-center p-5">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-sm w-full p-5 space-y-3 text-center">
+      <div class="w-11 h-11 mx-auto rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg">服</div>
+      <h2 class="text-base font-bold text-slate-900">教會服事排班小幫手</h2>
+      <p id="lockMsg" class="text-sm text-slate-600"></p>
+      <p class="text-xs text-slate-500">如果你是要回覆服事時間，請改用 LINE 群組裡的「回覆連結」。</p>
+      <input id="lockInput" type="text" placeholder="或貼上管理連結" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-900" />
+      <button id="btnLockGo" class="w-full py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold">開啟</button>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 text-white text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg transition-opacity duration-200"></div>
+
+  <script>
+    // ---------- Default Starter Data (from user's uploaded schedule image) ----------
+    const DEFAULT_ROLES = ['主領', '配唱1', '配唱2', '司琴', '吉他', '貝斯', '鼓', '投影片', '音控', '值日生'];
+
+    // 名單只存在雲端資料庫，不寫在程式碼裡
+    const DEFAULT_MEMBERS = [];
+
+    const DEFAULT_MONTH = '2026-12';
+    const DEFAULT_DATES = ['12/5', '12/12', '12/19', '12/26'];
+
+    const DEFAULT_SCHEDULE = {};
+
+    const STORAGE_KEY = 'church_service_scheduler_v2';
+    // 共用資料庫：資料放在「管理連結」裡的密碼所對應的位置，程式碼裡不含任何資料位置
+    // 管理資料：/s/<管理密碼>　　同工回覆：/r/<回覆密碼>（只有名單、日期與回覆）
+    const DB_BASE = 'https://church-ministry-schedule-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const ADMIN_KEY_STORE = 'church_admin_key_v1';
+    let adminKey = '';
+    let cloudReady = false;   // 已確認雲端有這份資料，才允許上傳
+
+    function keyFromText(text) {
+      const t = String(text || '').trim();
+      const m = t.match(/[#&?]k=([A-Za-z0-9_-]{20,})/);
+      if (m) return m[1];
+      return /^[A-Za-z0-9_-]{20,}$/.test(t) ? t : '';
+    }
+    const getReplyKey = () => (state && state.replyKey) || '';
+    const repliesUrl = () => `${DB_BASE}/r/${getReplyKey()}/replies.json`;
+    const viewUrl = () => `${DB_BASE}/r/${getReplyKey()}/view.json`;
+
+    let state = {
+      month: DEFAULT_MONTH,
+      weekday: 6,
+      dates: [...DEFAULT_DATES],
+      roles: [...DEFAULT_ROLES],
+      members: JSON.parse(JSON.stringify(DEFAULT_MEMBERS)),
+      replies: {},
+      schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE))
+    };
+
+    let syncUrl = '';
+    let syncTimer = null;
+
+    function initDefaultReplies() {
+      const r = {};
+      DEFAULT_MEMBERS.forEach(m => {
+        r[m.id] = { replied: false, availableDates: [] };
+      });
+      return r;
+    }
+
+    function normalizeState(s) {
+      const toArr = v => Array.isArray(v) ? v.filter(x => x != null) : (v && typeof v === 'object' ? Object.values(v) : []);
+      const out = {
+        month: s.month || state.month,
+        weekday: s.weekday != null ? Number(s.weekday) : 6,
+        dates: toArr(s.dates),
+        roles: toArr(s.roles),
+        members: toArr(s.members).map(m => {
+          const mm = { ...m, roles: toArr(m.roles) };
+          const info = toArr(m.info)
+            .filter(i => i && i.role && mm.roles.includes(i.role))
+            .map(i => ({ role: i.role, level: i.level || 'regular', note: i.note || '', paused: !!i.paused }))
+            .filter(i => i.level !== 'regular' || i.note || i.paused);
+          if (info.length) mm.info = info; else delete mm.info;
+          if (mm.status !== 'training' && mm.status !== 'paused') delete mm.status;
+          if (typeof mm.note === 'string' && mm.note.trim()) mm.note = mm.note.trim(); else delete mm.note;
+          return mm;
+        }),
+        replies: {},
+        schedule: {}
+      };
+      if (typeof s.replyKey === 'string' && s.replyKey) out.replyKey = s.replyKey;
+      Object.entries(s.replies || {}).forEach(([id, r]) => {
+        out.replies[id] = { replied: !!(r && r.replied), availableDates: toArr(r && r.availableDates) };
+        if (r && r.via) out.replies[id].via = r.via;
+        if (r && r.at) out.replies[id].at = r.at;
+      });
+      Object.entries(s.schedule || {}).forEach(([d, day]) => {
+        out.schedule[d] = { ...(day || {}) };
+      });
+      return out;
+    }
+
+    function loadState() {
+      try {
+        const fromHash = keyFromText(location.hash);
+        let saved = '';
+        try { saved = localStorage.getItem(ADMIN_KEY_STORE) || ''; } catch (e) {}
+        if (fromHash && fromHash !== saved) {
+          // 換了一個管理連結：不要沿用本機舊資料
+          try { localStorage.removeItem(STORAGE_KEY); localStorage.setItem(ADMIN_KEY_STORE, fromHash); } catch (e) {}
+        }
+        adminKey = fromHash || saved;
+        syncUrl = adminKey ? `${DB_BASE}/s/${adminKey}.json` : '';
+        if (!adminKey) return;
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.roles) && Array.isArray(parsed.members)) {
+            state = normalizeState(parsed);
+            return;
+          }
+        }
+      } catch (e) {}
+      state.replies = initDefaultReplies();
+    }
+
+    function saveState(skipCloud = false) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {}
+      if (!skipCloud && syncUrl) {
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => {
+          pushToCloud(true);
+        }, 600);
+      }
+    }
+
+    // ---------- Cloud Sync (Firebase RTDB / REST JSON) ----------
+    // 資料以「小區塊」為單位同步（每位同工的回報、每一格排班各自一筆），
+    // 多人同時修改不同格子時不會互相蓋掉；並以即時串流接收別人的修改。
+    // Firebase 的 key 不能含「/ . # $ [ ]」，所以日期如 11/7 會先編碼。
+    const encKey = k => String(k).replace(/[%.#$\[\]\/]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'));
+    const decKey = k => { try { return decodeURIComponent(k); } catch (e) { return k; } };
+
+    let lastSyncedFlat = null;   // 上一次與雲端一致的內容；null 代表尚未取得
+    let eventSource = null;
+    let remoteTimer = null;
+    let pendingRender = false;
+    let cloudOk = false;
+
+    function flattenState(s) {
+      const f = {
+        month: s.month,
+        weekday: s.weekday,
+        dates: s.dates,
+        roles: s.roles,
+        members: s.members,
+        replyKey: s.replyKey
+      };
+      Object.entries(s.replies || {}).forEach(([id, r]) => {
+        f['replies/' + encKey(id)] = r;
+      });
+      Object.entries(s.schedule || {}).forEach(([d, day]) => {
+        Object.entries(day || {}).forEach(([role, name]) => {
+          if (name) f['schedule/' + encKey(d) + '/' + encKey(role)] = name;
+        });
+      });
+      Object.keys(f).forEach(k => { if (f[k] === undefined) delete f[k]; });
+      return f;
+    }
+
+    function cloudToFlat(data) {
+      const s = { ...data, replies: {}, schedule: {} };
+      Object.entries(data.replies || {}).forEach(([id, r]) => { s.replies[decKey(id)] = r; });
+      Object.entries(data.schedule || {}).forEach(([d, day]) => {
+        const dd = {};
+        Object.entries(day || {}).forEach(([role, name]) => { dd[decKey(role)] = name; });
+        s.schedule[decKey(d)] = dd;
+      });
+      return flattenState(normalizeState(s));
+    }
+
+    function flatToState(f) {
+      const s = { month: f.month, weekday: f.weekday, dates: f.dates, roles: f.roles, members: f.members, replyKey: f.replyKey, replies: {}, schedule: {} };
+      Object.entries(f).forEach(([k, v]) => {
+        const parts = k.split('/');
+        if (parts[0] === 'replies' && parts.length === 2) {
+          s.replies[decKey(parts[1])] = v;
+        } else if (parts[0] === 'schedule' && parts.length === 3) {
+          const d = decKey(parts[1]);
+          if (!s.schedule[d]) s.schedule[d] = {};
+          s.schedule[d][decKey(parts[2])] = v;
+        }
+      });
+      return normalizeState(s);
+    }
+
+    function flatToCloud(f) {
+      const obj = {};
+      Object.entries(f).forEach(([k, v]) => {
+        const parts = k.split('/');
+        let cur = obj;
+        parts.slice(0, -1).forEach(p => { cur[p] = cur[p] || {}; cur = cur[p]; });
+        cur[parts[parts.length - 1]] = v;
+      });
+      return obj;
+    }
+
+    function diffFlat(a, b) {
+      const patch = {};
+      new Set([...Object.keys(a), ...Object.keys(b)]).forEach(k => {
+        if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) {
+          patch[k] = b[k] === undefined ? null : b[k];
+        }
+      });
+      return patch;
+    }
+
+    function isEditingText() {
+      const el = document.activeElement;
+      if (!el) return false;
+      if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+      return el.tagName === 'INPUT' && ['text', 'url', 'search', ''].includes(el.type);
+    }
+
+    function renderWhenIdle() {
+      if (isEditingText()) {
+        pendingRender = true;
+      } else {
+        pendingRender = false;
+        renderAll();
+      }
+    }
+
+    document.addEventListener('focusout', () => {
+      setTimeout(() => {
+        if (pendingRender && !isEditingText()) {
+          pendingRender = false;
+          renderAll();
+        }
+      }, 80);
+    });
+
+    function updateSyncUI(msg) {
+      const dot = document.getElementById('syncDot');
+      const label = document.getElementById('syncBtnLabel');
+      const statusText = document.getElementById('syncStatusText');
+      if (syncUrl) {
+        dot.className = 'w-2 h-2 rounded-full ' + (cloudOk ? 'bg-emerald-500' : 'bg-amber-400');
+        label.textContent = cloudOk ? '多人同步中' : '連線中…';
+        statusText.textContent = msg || (cloudOk ? '已連線，所有用管理連結打開的人都在編輯同一份資料。' : '連線中…');
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+        label.textContent = '未連線';
+        statusText.textContent = msg || '尚未使用管理連結開啟。';
+      }
+      const adminLink = document.getElementById('adminLinkText');
+      if (adminLink) adminLink.textContent = getAdminUrl() || '—';
+      const replyLink = document.getElementById('replyLinkText');
+      if (replyLink) replyLink.textContent = getReplyKey() ? getReplyUrl() : '—';
+    }
+
+    function applyRemote(remoteFlat) {
+      // 保留自己還沒上傳成功的修改，疊在雲端最新資料上
+      const pending = lastSyncedFlat ? diffFlat(lastSyncedFlat, flattenState(state)) : {};
+      const merged = { ...remoteFlat };
+      Object.entries(pending).forEach(([k, v]) => {
+        if (v === null) delete merged[k]; else merged[k] = v;
+      });
+      const oldReplies = state.replies || {};
+      const hadBase = cloudReady;
+      lastSyncedFlat = remoteFlat;
+      state = flatToState(merged);
+      if (hadBase) {
+        const fresh = state.members.filter(m => {
+          const n = state.replies[m.id], o = oldReplies[m.id];
+          return n && n.via === 'online' && n.at && (!o || o.at !== n.at);
+        }).map(m => m.name);
+        if (fresh.length) showToast(`${fresh.join('、')} 剛剛線上回覆了`);
+      }
+      saveState(true);
+      renderWhenIdle();
+      if (Object.keys(pending).length > 0) saveState();
+    }
+
+    async function pullFromCloud(silent = false) {
+      if (!syncUrl) return;
+      try {
+        const res = await fetch(syncUrl, { method: 'GET', cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data || typeof data !== 'object' || !data.roles) {
+          // 這個管理連結沒有資料：不自動建立，避免打錯連結產生一份空白資料
+          cloudOk = false;
+          cloudReady = false;
+          showLock('這個管理連結找不到排班資料，請確認連結是否完整。');
+          return;
+        }
+        if (data.replyKey) {
+          const r2 = await fetch(`${DB_BASE}/r/${data.replyKey}/replies.json`, { cache: 'no-store' });
+          if (!r2.ok) throw new Error('HTTP ' + r2.status);
+          data.replies = (await r2.json()) || {};
+        }
+        const wasReady = cloudReady;
+        cloudOk = true;
+        applyRemote(cloudToFlat(data));
+        cloudReady = true;
+        hideLock();
+        updateSyncUI();
+        if (!wasReady) startRepliesStream();
+        syncView();
+        if (!silent) showToast('已從雲端載入最新排班資料');
+      } catch (err) {
+        cloudOk = false;
+        updateSyncUI('雲端讀取失敗，暫時只存在本機（會自動重試）');
+        if (!silent) showToast('雲端讀取失敗，請檢查網路');
+      }
+    }
+
+    let pushing = false;
+    async function pushToCloud(silent = false) {
+      if (!syncUrl || !cloudReady) return;
+      if (pushing) { saveState(); return; }
+      pushing = true;
+      try {
+        const sent = diffFlat(lastSyncedFlat || {}, flattenState(state));
+        if (Object.keys(sent).length === 0) { pushing = false; return; }
+        // 同工回覆存在「回覆區」，其餘存在「管理區」
+        const mainPatch = {}, replyPatch = {};
+        Object.entries(sent).forEach(([k, v]) => {
+          if (k.startsWith('replies/')) replyPatch[k.slice(8)] = v; else mainPatch[k] = v;
+        });
+        if (Object.keys(mainPatch).length) {
+          const res = await fetch(syncUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mainPatch) });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        }
+        if (Object.keys(replyPatch).length && getReplyKey()) {
+          const res = await fetch(repliesUrl(), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(replyPatch) });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        }
+        const base = { ...(lastSyncedFlat || {}) };
+        Object.entries(sent).forEach(([k, v]) => { if (v === null) delete base[k]; else base[k] = v; });
+        lastSyncedFlat = base;
+        cloudOk = true;
+        updateSyncUI();
+        syncView();
+        if (!silent) showToast('已成功上傳至雲端共享！');
+      } catch (err) {
+        cloudOk = false;
+        updateSyncUI('雲端上傳失敗，資料已暫存於本機，下次修改時會再試');
+        if (!silent) showToast('雲端上傳失敗，請檢查網路');
+      } finally {
+        pushing = false;
+      }
+    }
+
+    // 回覆頁看得到的內容：只有月份、日期、可服事的同工姓名與項目（不含備註、狀況、排班）
+    let lastViewJson = '';
+    async function syncView() {
+      if (!cloudReady || !getReplyKey()) return;
+      const people = state.members
+        .filter(m => getStatus(m) !== 'paused')
+        .map(m => ({ id: m.id, name: m.name, roles: m.roles.filter(r => !getInfo(m, r).paused) }))
+        .filter(m => m.roles.length > 0);
+      const view = { month: state.month, dates: state.dates, roles: state.roles, people };
+      const json = JSON.stringify(view);
+      if (json === lastViewJson) return;
+      try {
+        const res = await fetch(viewUrl(), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: json });
+        if (res.ok) lastViewJson = json;
+      } catch (e) {}
+    }
+
+    let repliesSource = null;
+    function makeStream(url) {
+      const es = new EventSource(url);
+      const onChange = () => {
+        clearTimeout(remoteTimer);
+        remoteTimer = setTimeout(() => pullFromCloud(true), 300);
+      };
+      es.addEventListener('put', onChange);
+      es.addEventListener('patch', onChange);
+      es.onopen = () => { cloudOk = true; updateSyncUI(); };
+      es.onerror = () => { cloudOk = false; updateSyncUI('即時連線中斷，正在自動重新連線…'); };
+      return es;
+    }
+
+    function startLiveSync() {
+      stopLiveSync();
+      if (!syncUrl || typeof EventSource === 'undefined') return;
+      try { eventSource = makeStream(syncUrl); } catch (e) {}
+    }
+
+    function startRepliesStream() {
+      if (repliesSource) { repliesSource.close(); repliesSource = null; }
+      if (!getReplyKey() || typeof EventSource === 'undefined') return;
+      try { repliesSource = makeStream(repliesUrl()); } catch (e) {}
+    }
+
+    function stopLiveSync() {
+      if (eventSource) { eventSource.close(); eventSource = null; }
+      if (repliesSource) { repliesSource.close(); repliesSource = null; }
+    }
+
+    // ---------- 鎖定畫面（沒有管理連結時） ----------
+    function showLock(msg) {
+      document.getElementById('lockMsg').textContent = msg || '這是排班同工專用頁面，請使用管理連結開啟。';
+      document.getElementById('lockScreen').classList.remove('hidden');
+    }
+    function hideLock() {
+      document.getElementById('lockScreen').classList.add('hidden');
+    }
+
+    // 手機切回畫面時再抓一次最新資料
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && syncUrl) pullFromCloud(true);
+    });
+
+    // ---------- Toast & Clipboard ----------
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.classList.add('hidden'); }, 2400);
+    }
+
+    function copyText(text, successMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast(successMsg)).catch(() => fallbackCopy(text, successMsg));
+      } else {
+        fallbackCopy(text, successMsg);
+      }
+    }
+
+    function fallbackCopy(text, successMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (e) {
+        showToast('複製失敗，請手動選取文字複製');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function shareToLine(text) {
+      const encoded = encodeURIComponent(text);
+      const url = `https://line.me/R/msg/text/?${encoded}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    // ---------- Date Helpers ----------
+    function generateDatesForMonth(monthStr, targetWeekday) {
+      const [y, m] = monthStr.split('-').map(Number);
+      if (!y || !m) return [];
+      const dates = [];
+      const d = new Date(y, m - 1, 1);
+      while (d.getMonth() === m - 1) {
+        if (d.getDay() === Number(targetWeekday)) {
+          dates.push(`${m}/${d.getDate()}`);
+        }
+        d.setDate(d.getDate() + 1);
+      }
+      return dates;
+    }
+
+    const PUBLIC_BASE_URL = 'https://residuehank-max.github.io/Church-Ministry-Schedule/';
+    function siteBase() {
+      return location.protocol === 'https:' ? new URL('./', location.origin + location.pathname).href : PUBLIC_BASE_URL;
+    }
+    function getReplyUrl() {
+      const k = getReplyKey();
+      return siteBase() + 'reply.html' + (k ? '#k=' + k : '');
+    }
+    function getAdminUrl() {
+      return adminKey ? siteBase() + '#k=' + adminKey : '';
+    }
+
+    function getMonthLabel() {
+      const [, m] = state.month.split('-').map(Number);
+      return m ? `${m}月` : '本月';
+    }
+
+    // ---------- 人員在各分類的狀態（正式／可支援／待培育／暫停＋備註） ----------
+    const LEVEL_RANK = { regular: 3, support: 2, training: 1 };
+    const LEVEL_LABEL = { regular: '穩定', support: '可支援', training: '培養' };
+    const STATUS_LABEL = { stable: '穩定', training: '培養', paused: '暫停' };
+    const STATUS_ORDER = { stable: 0, training: 1, paused: 2 };
+
+    function getStatus(m) { return m.status || 'stable'; }
+
+    // 此人在某項目的「原始」設定（4. 服事人力表的編輯面板用）
+    function getRoleRaw(m, role) {
+      const i = (m.info || []).find(x => x.role === role);
+      return { level: (i && i.level) || 'regular', note: (i && i.note) || '', paused: !!(i && i.paused) };
+    }
+
+    // 實際生效的狀態：個人「暫停」→所有項目暫停；個人「培養」→所有項目列為培養
+    function getInfo(m, role) {
+      const raw = getRoleRaw(m, role);
+      const st = getStatus(m);
+      return {
+        level: st === 'training' ? 'training' : raw.level,
+        note: raw.note,
+        paused: st === 'paused' || raw.paused
+      };
+    }
+
+    function setInfo(m, role, patch) {
+      const cur = { ...getRoleRaw(m, role), ...patch };
+      const rest = (m.info || []).filter(x => x.role !== role);
+      if (cur.level !== 'regular' || cur.note || cur.paused) rest.push({ role, level: cur.level, note: cur.note, paused: cur.paused });
+      if (rest.length) m.info = rest; else delete m.info;
+    }
+
+    function removeInfo(m, role) {
+      if (!m.info) return;
+      m.info = m.info.filter(x => x.role !== role);
+      if (!m.info.length) delete m.info;
+    }
+
+    function isPausedEverywhere(m) {
+      return getStatus(m) === 'paused' || (m.roles.length > 0 && m.roles.every(r => getInfo(m, r).paused));
+    }
+
+    // 需要詢問／可排班的人：有服事項目、且不是全部暫停
+    function isActive(m) {
+      return m.roles.length > 0 && !isPausedEverywhere(m);
+    }
+
+    function shortTag(info) {
+      if (info.paused) return '暫停';
+      if (info.level === 'support') return '支援';
+      if (info.level === 'training') return '培育';
+      return '';
+    }
+
+    function nameClass(info) {
+      if (info.paused) return 'text-slate-400 line-through';
+      if (info.level === 'support') return 'text-blue-600';
+      if (info.level === 'training') return 'text-orange-600';
+      return 'text-slate-900';
+    }
+
+    let editingKey = null; // 正在編輯的「分類|人員id」
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ---------- Render Functions ----------
+    function renderAll() {
+      document.getElementById('monthInput').value = state.month;
+      document.getElementById('weekdaySelect').value = String(state.weekday);
+      document.getElementById('exportTitleInput').value = `${getMonthLabel()}服事表`;
+      updateSyncUI();
+      renderDatePills();
+      renderLineMessages();
+      renderRoleFilterOptions();
+      renderGroupedAvailability();
+      renderScheduleTable();
+      renderHRCards();
+      renderPeople();
+      renderCanvas();
+    }
+
+    function renderDatePills() {
+      const container = document.getElementById('datePillsContainer');
+      container.innerHTML = '';
+      if (state.dates.length === 0) {
+        container.innerHTML = '<span class="text-xs text-rose-500">尚未設定日期，請新增或重設日期</span>';
+        return;
+      }
+      state.dates.forEach(dateStr => {
+        const pill = document.createElement('span');
+        pill.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200';
+        pill.innerHTML = `<span>${escapeHtml(dateStr)}</span>`;
+        const delBtn = document.createElement('button');
+        delBtn.className = 'text-slate-400 hover:text-rose-600 font-bold ml-0.5';
+        delBtn.textContent = '×';
+        delBtn.title = '移除此日期';
+        delBtn.addEventListener('click', () => {
+          state.dates = state.dates.filter(d => d !== dateStr);
+          saveState();
+          renderAll();
+        });
+        pill.appendChild(delBtn);
+        container.appendChild(pill);
+      });
+    }
+
+    function renderLineMessages() {
+      const mLabel = getMonthLabel();
+      const dateListText = state.dates.map(d => `・${d}`).join('\n');
+      const replyUrl = getReplyUrl();
+      document.getElementById('replyUrlLink').textContent = replyUrl;
+      document.getElementById('replyUrlLink').href = replyUrl;
+      const askMsg = `平安！要開始安排【${mLabel}】的教會服事表囉 🙏\n服事日期：\n${dateListText}\n\n請點下面的連結，選自己的名字、勾選「可以」服事的日期後送出：\n👉 ${replyUrl}\n\n麻煩抽空回覆`;
+      document.getElementById('lineAskText').value = askMsg;
+
+      const unreplied = state.members.filter(m => !state.replies[m.id]?.replied && isActive(m));
+      document.getElementById('badgeUnreplied').textContent = unreplied.length;
+    }
+
+    function renderRoleFilterOptions() {
+      const sel = document.getElementById('filterRoleGroup');
+      const current = sel.value;
+      sel.innerHTML = '<option value="all">全部工作群組</option>';
+      state.roles.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = `${r}組`;
+        if (r === current) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderGroupedAvailability() {
+      const container = document.getElementById('groupedAvailContainer');
+      const roleFilter = document.getElementById('filterRoleGroup').value;
+      const statusFilter = document.getElementById('filterStatus').value;
+      const searchQ = document.getElementById('searchMember').value.trim().toLowerCase();
+
+      container.innerHTML = '';
+
+      const rolesToRender = roleFilter === 'all' ? state.roles : state.roles.filter(r => r === roleFilter);
+
+      rolesToRender.forEach(role => {
+        const groupMembers = state.members.filter(m => {
+          if (!m.roles.includes(role)) return false;
+          const rep = state.replies[m.id] || { replied: false, availableDates: [] };
+          if (statusFilter === 'unreplied' && rep.replied) return false;
+          if (statusFilter === 'replied' && !rep.replied) return false;
+          if (searchQ && !m.name.toLowerCase().includes(searchQ)) return false;
+          return true;
+        });
+
+        groupMembers.sort((a, b) => {
+          const ia = getInfo(a, role), ib = getInfo(b, role);
+          return (ia.paused - ib.paused) || (LEVEL_RANK[ib.level] - LEVEL_RANK[ia.level]);
+        });
+        const unrepliedInGroup = groupMembers.filter(m => !(state.replies[m.id]?.replied) && !getInfo(m, role).paused).length;
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col';
+
+        const header = document.createElement('div');
+        header.className = 'px-4 py-3 bg-slate-900 text-white flex items-center justify-between gap-2';
+        header.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">${escapeHtml(role)}組</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-200">${groupMembers.length} 人</span>
+          </div>
+          <span class="text-xs ${unrepliedInGroup > 0 ? 'text-amber-300 font-semibold' : 'text-emerald-300'}">
+            ${unrepliedInGroup > 0 ? `${unrepliedInGroup} 位未回報` : '全員已回報'}
+          </span>
+        `;
+        card.appendChild(header);
+
+        if (groupMembers.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'p-6 text-center text-xs text-slate-400';
+          empty.textContent = '此篩選條件下無同工';
+          card.appendChild(empty);
+          container.appendChild(card);
+          return;
+        }
+
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'overflow-x-auto custom-scrollbar';
+        const table = document.createElement('table');
+        table.className = 'w-full text-xs sm:text-sm border-collapse';
+
+        table.innerHTML = `
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+              <th class="py-2 px-3 text-left">姓名</th>
+              <th class="py-2 px-2 text-center">狀態</th>
+              ${state.dates.map(d => `<th class="py-2 px-2 text-center whitespace-nowrap">${escapeHtml(d)}</th>`).join('')}
+              <th class="py-2 px-2 text-center">快選</th>
+            </tr>
+          </thead>
+        `;
+
+        const tbody = document.createElement('tbody');
+        tbody.className = 'divide-y divide-slate-100';
+
+        groupMembers.forEach(m => {
+          if (!state.replies[m.id]) state.replies[m.id] = { replied: false, availableDates: [] };
+          const rep = state.replies[m.id];
+
+          const tr = document.createElement('tr');
+          tr.className = rep.replied ? 'bg-white hover:bg-slate-50' : 'bg-amber-50/40 hover:bg-amber-50/70';
+
+          const tdName = document.createElement('td');
+          tdName.className = 'py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap';
+          const rInfo = getInfo(m, role);
+          tdName.className = 'py-2.5 px-3 font-semibold whitespace-nowrap';
+          const nmSpan = document.createElement('span');
+          nmSpan.className = nameClass(rInfo);
+          nmSpan.textContent = m.name;
+          tdName.appendChild(nmSpan);
+          const lvTag = shortTag(rInfo);
+          if (lvTag || rInfo.note) {
+            const sub = document.createElement('div');
+            sub.className = 'text-[10px] font-normal text-slate-500 whitespace-normal max-w-[9rem]';
+            sub.textContent = [lvTag, rInfo.note].filter(Boolean).join('・');
+            tdName.appendChild(sub);
+          }
+          tr.appendChild(tdName);
+
+          const tdStatus = document.createElement('td');
+          tdStatus.className = 'py-2.5 px-2 text-center whitespace-nowrap';
+          const statusBtn = document.createElement('button');
+          statusBtn.className = rep.replied
+            ? 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition'
+            : 'text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 hover:bg-amber-200 transition';
+          statusBtn.textContent = rep.replied ? '已回' : '未回';
+          statusBtn.addEventListener('click', () => {
+            rep.replied = !rep.replied;
+            saveState();
+            renderLineMessages();
+            renderGroupedAvailability();
+            renderScheduleTable();
+          });
+          tdStatus.appendChild(statusBtn);
+          if (rep.replied && rep.via === 'online' && rep.at) {
+            const t = new Date(rep.at);
+            const tag = document.createElement('div');
+            tag.className = 'text-[10px] text-sky-700 mt-0.5';
+            tag.textContent = `線上 ${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            tag.title = '同工透過回覆網址自行填寫';
+            tdStatus.appendChild(tag);
+          }
+          tr.appendChild(tdStatus);
+
+          state.dates.forEach(d => {
+            const td = document.createElement('td');
+            td.className = 'py-2.5 px-2 text-center';
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.checked = rep.availableDates.includes(d);
+            chk.className = 'w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer';
+            chk.addEventListener('change', () => {
+              if (chk.checked) {
+                if (!rep.availableDates.includes(d)) rep.availableDates.push(d);
+              } else {
+                rep.availableDates = rep.availableDates.filter(x => x !== d);
+              }
+              rep.replied = true;
+              saveState();
+              renderLineMessages();
+              renderGroupedAvailability();
+              renderScheduleTable();
+            });
+            td.appendChild(chk);
+            tr.appendChild(td);
+          });
+
+          const tdQuick = document.createElement('td');
+          tdQuick.className = 'py-2.5 px-2 text-center whitespace-nowrap';
+          const allBtn = document.createElement('button');
+          allBtn.className = 'text-[11px] text-slate-600 hover:text-slate-900 underline mr-1.5';
+          allBtn.textContent = '全可';
+          allBtn.addEventListener('click', () => {
+            rep.replied = true;
+            rep.availableDates = [...state.dates];
+            saveState();
+            renderLineMessages();
+            renderGroupedAvailability();
+            renderScheduleTable();
+          });
+          const noneBtn = document.createElement('button');
+          noneBtn.className = 'text-[11px] text-slate-400 hover:text-rose-600 underline';
+          noneBtn.textContent = '全無';
+          noneBtn.addEventListener('click', () => {
+            rep.replied = true;
+            rep.availableDates = [];
+            saveState();
+            renderLineMessages();
+            renderGroupedAvailability();
+            renderScheduleTable();
+          });
+          tdQuick.appendChild(allBtn);
+          tdQuick.appendChild(noneBtn);
+          tr.appendChild(tdQuick);
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+        tableWrap.appendChild(table);
+        card.appendChild(tableWrap);
+        container.appendChild(card);
+      });
+    }
+
+    function renderScheduleTable() {
+      const head = document.getElementById('schedTableHead');
+      const body = document.getElementById('schedTableBody');
+
+      head.innerHTML = `
+        <th class="py-3 px-4 text-center w-28 border-r border-slate-700">日期</th>
+        ${state.dates.map(d => `<th class="py-3 px-3 text-center border-r border-slate-700 last:border-r-0">${escapeHtml(d)}</th>`).join('')}
+      `;
+
+      body.innerHTML = '';
+      const conflicts = [];
+
+      state.dates.forEach(d => {
+        const daySched = state.schedule[d] || {};
+        const seen = {};
+        state.roles.forEach(r => {
+          const name = daySched[r];
+          if (name) {
+            if (seen[name]) {
+              conflicts.push(`${d}：${name} 同時擔任「${seen[name]}」與「${r}」`);
+            } else {
+              seen[name] = r;
+            }
+          }
+        });
+      });
+
+      const warnEl = document.getElementById('scheduleWarnings');
+      if (conflicts.length > 0) {
+        warnEl.classList.remove('hidden');
+        warnEl.innerHTML = `<strong>注意撞期提醒：</strong><ul class="list-disc list-inside mt-1">${conflicts.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>`;
+      } else {
+        warnEl.classList.add('hidden');
+      }
+
+      state.roles.forEach(role => {
+        const tr = document.createElement('tr');
+        const th = document.createElement('th');
+        th.className = 'py-2.5 px-3 bg-slate-900 text-white font-semibold text-center border-r border-slate-700 whitespace-nowrap';
+        th.textContent = role;
+        tr.appendChild(th);
+
+        state.dates.forEach(d => {
+          if (!state.schedule[d]) state.schedule[d] = {};
+          const currentVal = state.schedule[d][role] || '';
+
+          const td = document.createElement('td');
+          td.className = 'py-2 px-2.5 border-r border-slate-200 last:border-r-0 text-center bg-white';
+
+          const select = document.createElement('select');
+          select.className = 'w-full min-w-[7.5rem] text-xs sm:text-sm border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900 text-center';
+
+          const emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.textContent = '— 留空 —';
+          select.appendChild(emptyOpt);
+
+          const eligible = state.members.filter(m => m.roles.includes(role)).sort((a, b) => {
+            const ia = getInfo(a, role), ib = getInfo(b, role);
+            return (ia.paused - ib.paused) || (LEVEL_RANK[ib.level] - LEVEL_RANK[ia.level]);
+          });
+          const others = state.members.filter(m => !m.roles.includes(role));
+
+          const addGroup = (label, list) => {
+            if (list.length === 0) return;
+            const grp = document.createElement('optgroup');
+            grp.label = label;
+            list.forEach(m => {
+              const rep = state.replies[m.id] || { replied: false, availableDates: [] };
+              let tag = '';
+              if (!rep.replied) tag = ' (? 未回報)';
+              else if (rep.availableDates.includes(d)) tag = ' (✓ 可)';
+              else tag = ' (✗ 不可)';
+              const opt = document.createElement('option');
+              opt.value = m.name;
+              const lv = m.roles.includes(role) ? shortTag(getInfo(m, role)) : '';
+              opt.textContent = `${m.name}${lv ? `［${lv}］` : ''}${tag}`;
+              if (currentVal === m.name) opt.selected = true;
+              grp.appendChild(opt);
+            });
+            select.appendChild(grp);
+          };
+
+          addGroup(`「${role}」人員`, eligible);
+          addGroup('其他分類支援', others);
+
+          if (currentVal && !state.members.some(m => m.name === currentVal)) {
+            const opt = document.createElement('option');
+            opt.value = currentVal;
+            opt.textContent = currentVal;
+            opt.selected = true;
+            select.appendChild(opt);
+          }
+
+          select.addEventListener('change', () => {
+            state.schedule[d][role] = select.value;
+            saveState();
+            renderScheduleTable();
+            renderCanvas();
+          });
+
+          td.appendChild(select);
+          tr.appendChild(td);
+        });
+
+        body.appendChild(tr);
+      });
+
+      const counts = {};
+      state.dates.forEach(d => {
+        const daySched = state.schedule[d] || {};
+        state.roles.forEach(r => {
+          const name = daySched[r];
+          if (name) counts[name] = (counts[name] || 0) + 1;
+        });
+      });
+      const summaryEl = document.getElementById('workloadSummary');
+      const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (entries.length === 0) {
+        summaryEl.innerHTML = '<span class="text-xs text-slate-400">尚未安排任何服事</span>';
+      } else {
+        summaryEl.innerHTML = entries.map(([name, cnt]) =>
+          `<span class="text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 font-medium">${escapeHtml(name)} <strong class="text-slate-950">${cnt}次</strong></span>`
+        ).join('');
+      }
+    }
+
+    // ---------- HR Library by Work Category ----------
+    function renderHRCards() {
+      const container = document.getElementById('hrCardsContainer');
+      container.innerHTML = '';
+
+      state.roles.forEach((role, idx) => {
+        const roleMembers = state.members.filter(m => m.roles.includes(role));
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col justify-between gap-3 transition';
+        card.dataset.role = role;
+
+        const top = document.createElement('div');
+        top.className = 'space-y-3';
+
+        // Card header
+        const hdr = document.createElement('div');
+        hdr.className = 'flex items-center justify-between border-b border-slate-100 pb-2';
+        hdr.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-900 text-sm">${escapeHtml(role)}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">${roleMembers.length} 人</span>
+          </div>
+        `;
+
+        const hdrBtns = document.createElement('div');
+        hdrBtns.className = 'flex items-center gap-1';
+        if (idx > 0) {
+          const upBtn = document.createElement('button');
+          upBtn.className = 'text-xs px-1.5 py-0.5 rounded border border-slate-200 hover:bg-slate-100 text-slate-600';
+          upBtn.textContent = '↑';
+          upBtn.title = '上移分類順序';
+          upBtn.addEventListener('click', () => {
+            [state.roles[idx - 1], state.roles[idx]] = [state.roles[idx], state.roles[idx - 1]];
+            saveState();
+            renderAll();
+          });
+          hdrBtns.appendChild(upBtn);
+        }
+        const delRoleBtn = document.createElement('button');
+        delRoleBtn.className = 'text-xs px-2 py-0.5 rounded text-rose-600 hover:bg-rose-50';
+        delRoleBtn.textContent = '刪除分類';
+        delRoleBtn.addEventListener('click', () => {
+          if (!confirm(`確定刪除「${role}」分類？所有人都會看到這個變更。`)) return;
+          state.roles = state.roles.filter(r => r !== role);
+          state.members.forEach(m => { m.roles = m.roles.filter(r => r !== role); removeInfo(m, role); });
+          saveState();
+          renderAll();
+        });
+        hdrBtns.appendChild(delRoleBtn);
+        hdr.appendChild(hdrBtns);
+        top.appendChild(hdr);
+
+        // Member chips
+        const chipsWrap = document.createElement('div');
+        chipsWrap.className = 'flex flex-wrap gap-1.5 min-h-[36px]';
+        if (roleMembers.length === 0) {
+          chipsWrap.innerHTML = '<span class="text-xs text-slate-400">尚未加入人員</span>';
+        } else {
+          roleMembers.sort((a, b) => {
+            const ia = getInfo(a, role), ib = getInfo(b, role);
+            return (ia.paused - ib.paused) || (LEVEL_RANK[ib.level] - LEVEL_RANK[ia.level]);
+          });
+          roleMembers.forEach(m => {
+            const info = getInfo(m, role);
+            const key = role + '|' + m.id;
+            const chip = document.createElement('span');
+            chip.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-xs font-medium border '
+              + (editingKey === key ? 'border-slate-900' : 'border-slate-200');
+            const nameBtn = document.createElement('button');
+            nameBtn.type = 'button';
+            nameBtn.className = 'text-left';
+            nameBtn.title = '點一下修改狀態與備註';
+            const nm = document.createElement('span');
+            nm.className = nameClass(info);
+            nm.textContent = m.name;
+            nameBtn.appendChild(nm);
+            if (info.note || info.paused) {
+              const sub = document.createElement('span');
+              sub.className = 'block text-[10px] font-normal text-slate-500';
+              sub.textContent = (info.paused ? '暫停' : '') + (info.paused && info.note ? '・' : '') + info.note;
+              nameBtn.appendChild(sub);
+            }
+            nameBtn.addEventListener('click', () => {
+              editingKey = editingKey === key ? null : key;
+              renderHRCards();
+            });
+            chip.appendChild(nameBtn);
+            const rmBtn = document.createElement('button');
+            rmBtn.className = 'text-slate-400 hover:text-rose-600 font-bold ml-0.5';
+            rmBtn.textContent = '×';
+            rmBtn.title = `從「${role}」移除 ${m.name}`;
+            rmBtn.addEventListener('click', () => {
+              m.roles = m.roles.filter(r => r !== role);
+              removeInfo(m, role);
+              if (editingKey === role + '|' + m.id) editingKey = null;
+              // 人仍保留在人力資料庫（只是沒有服事項目）
+              saveState();
+              renderAll();
+              showToast(`已從「${role}」移除 ${m.name}`);
+            });
+            chip.appendChild(rmBtn);
+            chipsWrap.appendChild(chip);
+          });
+        }
+        top.appendChild(chipsWrap);
+
+        // 編輯某位同工在此分類的狀態
+        const editing = editingKey && editingKey.startsWith(role + '|')
+          ? roleMembers.find(m => editingKey === role + '|' + m.id) : null;
+        if (editing) {
+          const info = getRoleRaw(editing, role);
+          const pst = getStatus(editing);
+          const panel = document.createElement('div');
+          panel.className = 'rounded-lg border border-slate-300 bg-slate-50 p-3 space-y-2';
+          panel.innerHTML = `
+            <div class="text-xs font-bold text-slate-800"></div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select class="lvl text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
+                <option value="regular">穩定</option>
+                <option value="support">可支援（藍字）</option>
+                <option value="training">培養（橘字）</option>
+              </select>
+              <label class="flex items-center gap-1.5 text-xs text-slate-700">
+                <input type="checkbox" class="psd rounded border-slate-300" /> 暫停此項
+              </label>
+            </div>
+            <p class="pnote hidden text-[11px] text-orange-700"></p>
+            <input type="text" class="nt w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5" placeholder="備註，例如：可連兩週、休息到年底" />
+            <div class="flex justify-end gap-2">
+              <button type="button" class="cancel text-xs px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white">取消</button>
+              <button type="button" class="save text-xs px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800">儲存</button>
+            </div>`;
+          panel.querySelector('div').textContent = `${editing.name}・${role}`;
+          if (pst !== 'stable') {
+            const pn = panel.querySelector('.pnote');
+            pn.textContent = `${editing.name} 在人力資料庫的整體狀況是「${STATUS_LABEL[pst]}」，會優先套用；要改請到「5. 人力資料庫」。`;
+            pn.classList.remove('hidden');
+          }
+          panel.querySelector('.lvl').value = info.level;
+          panel.querySelector('.psd').checked = info.paused;
+          panel.querySelector('.nt').value = info.note;
+          panel.querySelector('.cancel').addEventListener('click', () => { editingKey = null; renderHRCards(); });
+          const doSave = () => {
+            setInfo(editing, role, {
+              level: panel.querySelector('.lvl').value,
+              paused: panel.querySelector('.psd').checked,
+              note: panel.querySelector('.nt').value.trim()
+            });
+            editingKey = null;
+            saveState();
+            renderAll();
+            showToast(`已更新 ${editing.name}（${role}）`);
+          };
+          panel.querySelector('.save').addEventListener('click', doSave);
+          panel.querySelector('.nt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) doSave(); });
+          top.appendChild(panel);
+        }
+        card.appendChild(top);
+
+        // Add person to this role
+        const addRow = document.createElement('div');
+        addRow.className = 'flex gap-1.5 pt-2 border-t border-slate-100';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `新增「${role}」人員...`;
+        input.className = 'flex-1 text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-900';
+
+        const addBtn = document.createElement('button');
+        addBtn.className = 'px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition shrink-0';
+        addBtn.textContent = '+ 加入';
+
+        const handleAdd = () => {
+          const name = input.value.trim();
+          if (!name) return;
+          let existing = state.members.find(m => m.name === name);
+          if (existing) {
+            if (!existing.roles.includes(role)) existing.roles.push(role);
+          } else {
+            const id = 'm_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            existing = { id, name, roles: [role] };
+            state.members.push(existing);
+            state.replies[id] = { replied: false, availableDates: [] };
+          }
+          input.value = '';
+          saveState();
+          renderAll();
+          showToast(`已將 ${name} 加入「${role}」`);
+        };
+
+        addBtn.addEventListener('click', handleAdd);
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.isComposing) handleAdd();
+        });
+
+        addRow.appendChild(input);
+        addRow.appendChild(addBtn);
+        card.appendChild(addRow);
+
+        container.appendChild(card);
+      });
+    }
+
+    // ---------- 5. 人力資料庫（以人為單位） ----------
+    let peopleAddOpen = null;   // 正在加服事項目的人員 id
+    let peopleTagEdit = null;   // 正在編輯的「人員id|項目」
+    let peopleEditId = null;    // 正在編輯姓名／備註的人員 id
+
+    function sortRolesByOrder(roles) {
+      return [...roles].sort((a, b) => state.roles.indexOf(a) - state.roles.indexOf(b));
+    }
+
+    function personSortKey(m) {
+      const idx = m.roles.length ? Math.min(...m.roles.map(r => { const i = state.roles.indexOf(r); return i < 0 ? 999 : i; })) : 999;
+      return [STATUS_ORDER[getStatus(m)], idx];
+    }
+
+    function tagClass(m, role) {
+      const info = getInfo(m, role);
+      if (info.paused) return 'bg-slate-100 text-slate-400 border-slate-200 line-through';
+      if (info.level === 'support') return 'bg-blue-50 text-blue-700 border-blue-200';
+      if (info.level === 'training') return 'bg-orange-50 text-orange-700 border-orange-200';
+      return 'bg-white text-slate-800 border-slate-300';
+    }
+
+    function renderPeople() {
+      const list = document.getElementById('peopleList');
+      if (!list) return;
+
+      // 項目篩選選單
+      const rf = document.getElementById('peopleRoleFilter');
+      const curRole = rf.value;
+      rf.innerHTML = '<option value="all">全部項目</option><option value="none">尚未設定項目</option>';
+      state.roles.forEach(r => {
+        const o = document.createElement('option');
+        o.value = r; o.textContent = r;
+        rf.appendChild(o);
+      });
+      rf.value = [...rf.options].some(o => o.value === curRole) ? curRole : 'all';
+
+      const q = document.getElementById('peopleSearch').value.trim().toLowerCase();
+      const sf = document.getElementById('peopleStatusFilter').value;
+      const roleF = rf.value;
+
+      const counts = { stable: 0, training: 0, paused: 0 };
+      state.members.forEach(m => { counts[getStatus(m)]++; });
+      document.getElementById('peopleSummary').innerHTML =
+        `共 <strong>${state.members.length}</strong> 位：穩定 ${counts.stable}・培養 ${counts.training}・暫停 ${counts.paused}`;
+
+      const people = state.members.filter(m => {
+        if (q && !m.name.toLowerCase().includes(q)) return false;
+        if (sf !== 'all' && getStatus(m) !== sf) return false;
+        if (roleF === 'none' && m.roles.length) return false;
+        if (roleF !== 'all' && roleF !== 'none' && !m.roles.includes(roleF)) return false;
+        return true;
+      }).sort((a, b) => {
+        const ka = personSortKey(a), kb = personSortKey(b);
+        return (ka[0] - kb[0]) || (ka[1] - kb[1]) || a.name.localeCompare(b.name, 'zh-Hant');
+      });
+
+      list.innerHTML = '';
+      if (people.length === 0) {
+        list.innerHTML = '<div class="text-center text-xs text-slate-400 py-8 md:col-span-2">沒有符合條件的同工</div>';
+        return;
+      }
+
+      people.forEach(m => {
+        const st = getStatus(m);
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl border border-slate-200 shadow-sm p-3 space-y-2 transition';
+        card.dataset.person = m.id;
+
+        // 第一行：姓名＋服事狀況
+        const row1 = document.createElement('div');
+        row1.className = 'flex items-center justify-between gap-2';
+        const nameBtn = document.createElement('button');
+        nameBtn.type = 'button';
+        nameBtn.className = 'text-left font-bold text-sm ' + (st === 'paused' ? 'text-slate-400' : 'text-slate-900');
+        nameBtn.title = '點一下修改姓名或備註';
+        nameBtn.textContent = m.name;
+        nameBtn.addEventListener('click', () => { peopleEditId = peopleEditId === m.id ? null : m.id; renderPeople(); });
+        row1.appendChild(nameBtn);
+
+        const seg = document.createElement('div');
+        seg.className = 'flex rounded-lg border border-slate-200 overflow-hidden shrink-0';
+        const segColors = {
+          stable: 'bg-emerald-600 text-white',
+          training: 'bg-orange-500 text-white',
+          paused: 'bg-slate-500 text-white'
+        };
+        ['stable', 'training', 'paused'].forEach(k => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'text-xs px-2.5 py-1 font-medium transition ' + (st === k ? segColors[k] : 'bg-white text-slate-500 hover:bg-slate-50');
+          b.textContent = STATUS_LABEL[k];
+          b.setAttribute('aria-pressed', st === k ? 'true' : 'false');
+          b.addEventListener('click', () => {
+            if (getStatus(m) === k) return;
+            if (k === 'stable') delete m.status; else m.status = k;
+            saveState();
+            renderAll();
+            showToast(`${m.name} 改為「${STATUS_LABEL[k]}」`);
+          });
+          seg.appendChild(b);
+        });
+        const right = document.createElement('div');
+        right.className = 'flex items-center gap-1.5 shrink-0';
+        right.appendChild(seg);
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'text-xs px-2 py-1 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50';
+        delBtn.textContent = '刪除';
+        delBtn.title = `從人力資料庫刪除 ${m.name}`;
+        delBtn.addEventListener('click', () => deletePerson(m));
+        right.appendChild(delBtn);
+        row1.appendChild(right);
+        card.appendChild(row1);
+
+        // 第二行：服事項目標籤
+        const tags = document.createElement('div');
+        tags.className = 'flex flex-wrap gap-1.5 items-center';
+        sortRolesByOrder(m.roles).forEach(role => {
+          const info = getRoleRaw(m, role);
+          const t = document.createElement('button');
+          t.type = 'button';
+          const active = peopleTagEdit === m.id + '|' + role;
+          t.className = 'text-xs px-2 py-1 rounded-lg border font-medium ' + tagClass(m, role) + (active ? ' ring-2 ring-slate-900' : '');
+          const extra = info.paused ? '・暫停' : (info.level === 'support' ? '・支援' : (info.level === 'training' ? '・培養' : ''));
+          t.textContent = role + extra;
+          t.title = info.note || '點一下修改此項目';
+          t.addEventListener('click', () => {
+            peopleTagEdit = active ? null : m.id + '|' + role;
+            peopleAddOpen = null;
+            renderPeople();
+          });
+          tags.appendChild(t);
+        });
+        const addTagBtn = document.createElement('button');
+        addTagBtn.type = 'button';
+        addTagBtn.className = 'text-xs px-2 py-1 rounded-lg border border-dashed border-slate-400 text-slate-600 hover:bg-slate-50';
+        addTagBtn.textContent = peopleAddOpen === m.id ? '完成' : '＋ 服事項目';
+        addTagBtn.addEventListener('click', () => {
+          peopleAddOpen = peopleAddOpen === m.id ? null : m.id;
+          peopleTagEdit = null;
+          renderPeople();
+        });
+        tags.appendChild(addTagBtn);
+        card.appendChild(tags);
+
+        // 加入服事項目：點選即加入
+        if (peopleAddOpen === m.id) {
+          const pick = document.createElement('div');
+          pick.className = 'rounded-lg bg-slate-50 border border-slate-200 p-2 space-y-1.5';
+          const hint = document.createElement('div');
+          hint.className = 'text-[11px] text-slate-500';
+          const remaining = state.roles.filter(r => !m.roles.includes(r));
+          hint.textContent = remaining.length ? '點選要加入的服事項目：' : '已加入所有服事項目';
+          pick.appendChild(hint);
+          const wrap = document.createElement('div');
+          wrap.className = 'flex flex-wrap gap-1.5';
+          remaining.forEach(r => {
+            const c = document.createElement('button');
+            c.type = 'button';
+            c.className = 'text-xs px-2 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-emerald-50 hover:border-emerald-400';
+            c.textContent = '＋ ' + r;
+            c.addEventListener('click', () => {
+              m.roles = sortRolesByOrder([...m.roles, r]);
+              if (!state.replies[m.id]) state.replies[m.id] = { replied: false, availableDates: [] };
+              saveState();
+              renderAll();
+              showToast(`已將 ${m.name} 加入「${r}」`);
+            });
+            wrap.appendChild(c);
+          });
+          pick.appendChild(wrap);
+          card.appendChild(pick);
+        }
+
+        // 編輯單一服事項目
+        if (peopleTagEdit && peopleTagEdit.startsWith(m.id + '|')) {
+          const role = peopleTagEdit.slice(m.id.length + 1);
+          if (m.roles.includes(role)) {
+            const info = getRoleRaw(m, role);
+            const panel = document.createElement('div');
+            panel.className = 'rounded-lg bg-slate-50 border border-slate-300 p-2.5 space-y-2';
+            panel.innerHTML = `
+              <div class="text-xs font-bold text-slate-800"></div>
+              <div class="flex flex-wrap items-center gap-2">
+                <select class="lvl text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white">
+                  <option value="regular">穩定</option>
+                  <option value="support">可支援（藍字）</option>
+                  <option value="training">培養（橘字）</option>
+                </select>
+                <label class="flex items-center gap-1.5 text-xs text-slate-700">
+                  <input type="checkbox" class="psd rounded border-slate-300" /> 暫停此項
+                </label>
+              </div>
+              <input type="text" class="nt w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5" placeholder="這個項目的備註，例如：可連兩週" />
+              <div class="flex items-center justify-between gap-2">
+                <button type="button" class="rm text-xs px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50">移除此項目</button>
+                <div class="flex gap-2">
+                  <button type="button" class="cancel text-xs px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white">取消</button>
+                  <button type="button" class="save text-xs px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800">儲存</button>
+                </div>
+              </div>`;
+            panel.querySelector('div').textContent = `${m.name}・${role}`;
+            panel.querySelector('.lvl').value = info.level;
+            panel.querySelector('.psd').checked = info.paused;
+            panel.querySelector('.nt').value = info.note;
+            panel.querySelector('.cancel').addEventListener('click', () => { peopleTagEdit = null; renderPeople(); });
+            const doSave = () => {
+              setInfo(m, role, {
+                level: panel.querySelector('.lvl').value,
+                paused: panel.querySelector('.psd').checked,
+                note: panel.querySelector('.nt').value.trim()
+              });
+              peopleTagEdit = null;
+              saveState();
+              renderAll();
+              showToast(`已更新 ${m.name}（${role}）`);
+            };
+            panel.querySelector('.save').addEventListener('click', doSave);
+            panel.querySelector('.nt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) doSave(); });
+            panel.querySelector('.rm').addEventListener('click', () => {
+              m.roles = m.roles.filter(r => r !== role);
+              removeInfo(m, role);
+              peopleTagEdit = null;
+              saveState();
+              renderAll();
+              showToast(`已將 ${m.name} 從「${role}」移除`);
+            });
+            card.appendChild(panel);
+          }
+        }
+
+        // 備註（個人＋各項目）
+        const notes = [];
+        if (m.note) notes.push(m.note);
+        sortRolesByOrder(m.roles).forEach(r => { const n = getRoleRaw(m, r).note; if (n) notes.push(`${r}：${n}`); });
+        if (notes.length && peopleEditId !== m.id) {
+          const nl = document.createElement('div');
+          nl.className = 'text-[11px] text-slate-500 leading-snug';
+          nl.textContent = notes.join('｜');
+          card.appendChild(nl);
+        }
+
+        // 編輯姓名／個人備註／刪除
+        if (peopleEditId === m.id) {
+          const panel = document.createElement('div');
+          panel.className = 'rounded-lg bg-slate-50 border border-slate-300 p-2.5 space-y-2';
+          panel.innerHTML = `
+            <label class="block text-[11px] text-slate-600">姓名
+              <input type="text" class="nm mt-0.5 w-full text-sm border border-slate-300 rounded-lg px-2.5 py-1.5" />
+            </label>
+            <label class="block text-[11px] text-slate-600">個人備註
+              <input type="text" class="pn mt-0.5 w-full text-xs border border-slate-300 rounded-lg px-2.5 py-1.5" placeholder="例如：休息到年底、上班不方便" />
+            </label>
+            <div class="flex items-center justify-between gap-2">
+              <button type="button" class="del text-xs px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50">刪除此人</button>
+              <div class="flex gap-2">
+                <button type="button" class="cancel text-xs px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white">取消</button>
+                <button type="button" class="save text-xs px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800">儲存</button>
+              </div>
+            </div>`;
+          panel.querySelector('.nm').value = m.name;
+          panel.querySelector('.pn').value = m.note || '';
+          panel.querySelector('.cancel').addEventListener('click', () => { peopleEditId = null; renderPeople(); });
+          panel.querySelector('.save').addEventListener('click', () => {
+            const newName = panel.querySelector('.nm').value.trim();
+            if (!newName) { showToast('姓名不能空白'); return; }
+            if (newName !== m.name && state.members.some(x => x.name === newName)) {
+              showToast(`已經有「${newName}」了`);
+              return;
+            }
+            if (newName !== m.name) {
+              // 排班表裡的名字一起更新
+              Object.values(state.schedule || {}).forEach(day => {
+                Object.keys(day || {}).forEach(r => { if (day[r] === m.name) day[r] = newName; });
+              });
+              m.name = newName;
+            }
+            const note = panel.querySelector('.pn').value.trim();
+            if (note) m.note = note; else delete m.note;
+            peopleEditId = null;
+            saveState();
+            renderAll();
+            showToast(`已更新 ${m.name}`);
+          });
+          panel.querySelector('.del').addEventListener('click', () => deletePerson(m));
+          card.appendChild(panel);
+        }
+
+        list.appendChild(card);
+      });
+    }
+
+    function deletePerson(m) {
+      if (!confirm(`確定從人力資料庫刪除「${m.name}」？他的服事項目和回覆紀錄也會一起刪除，所有人都會看到這個變更。`)) return;
+      state.members = state.members.filter(x => x.id !== m.id);
+      delete state.replies[m.id];
+      if (peopleEditId === m.id) peopleEditId = null;
+      if (peopleAddOpen === m.id) peopleAddOpen = null;
+      if (peopleTagEdit && peopleTagEdit.startsWith(m.id + '|')) peopleTagEdit = null;
+      saveState();
+      renderAll();
+      showToast(`已刪除 ${m.name}`);
+    }
+
+    function flashPerson(id) {
+      const card = document.querySelector(`#peopleList [data-person="${CSS.escape(id)}"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-emerald-500');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-emerald-500'), 2000);
+    }
+
+    function addPerson() {
+      const input = document.getElementById('newPersonInput');
+      const name = input.value.trim();
+      if (!name) { showToast('請先輸入姓名'); input.focus(); return; }
+      const existing = state.members.find(m => m.name === name);
+      if (existing) {
+        showToast(`已經有「${name}」了`);
+        document.getElementById('peopleSearch').value = '';
+        document.getElementById('peopleStatusFilter').value = 'all';
+        document.getElementById('peopleRoleFilter').value = 'all';
+        renderPeople();
+        flashPerson(existing.id);
+        return;
+      }
+      const id = 'm_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      state.members.push({ id, name, roles: [] });
+      state.replies[id] = { replied: false, availableDates: [] };
+      input.value = '';
+      input.blur();
+      peopleAddOpen = id;   // 直接打開加入服事項目
+      peopleTagEdit = null;
+      document.getElementById('peopleSearch').value = '';
+      document.getElementById('peopleStatusFilter').value = 'all';
+      document.getElementById('peopleRoleFilter').value = 'all';
+      saveState();
+      renderAll();
+      showToast(`已新增 ${name}，請點選他服事的項目`);
+      flashPerson(id);
+    }
+
+    // ---------- Auto Scheduler ----------
+    function autoSchedule() {
+      if (state.dates.length === 0 || state.roles.length === 0) {
+        showToast('請先確認日期與服事項目');
+        return;
+      }
+
+      const counts = {};
+      state.members.forEach(m => { counts[m.name] = 0; });
+
+      const newSched = {};
+      state.dates.forEach(d => {
+        newSched[d] = {};
+        const usedToday = new Set();
+
+        state.roles.forEach(role => {
+          // 暫停安排的人不自動排；正式 > 可支援 > 待培育
+          const candidates = state.members.filter(m => m.roles.includes(role) && !getInfo(m, role).paused);
+          if (candidates.length === 0) {
+            newSched[d][role] = '';
+            return;
+          }
+
+          const scored = candidates.map(m => {
+            const rep = state.replies[m.id] || { replied: false, availableDates: [] };
+            const isAvail = rep.replied && rep.availableDates.includes(d);
+            const isUnreplied = !rep.replied;
+            const notUsedToday = !usedToday.has(m.name);
+
+            let tier = 0;
+            if (isAvail && notUsedToday) tier = 4;
+            else if (isUnreplied && notUsedToday) tier = 3;
+            else if (isAvail) tier = 2;
+            else if (isUnreplied) tier = 1;
+            else tier = 0;
+
+            return { m, tier, level: LEVEL_RANK[getInfo(m, role).level] || 3, count: counts[m.name] || 0 };
+          }).filter(x => x.tier > 0);
+
+          if (scored.length === 0) {
+            newSched[d][role] = '';
+            return;
+          }
+
+          scored.sort((a, b) => {
+            if (b.tier !== a.tier) return b.tier - a.tier;
+            if (b.level !== a.level) return b.level - a.level;
+            return a.count - b.count;
+          });
+
+          const chosen = scored[0].m;
+          newSched[d][role] = chosen.name;
+          usedToday.add(chosen.name);
+          counts[chosen.name] = (counts[chosen.name] || 0) + 1;
+        });
+      });
+
+      state.schedule = newSched;
+      saveState();
+      renderScheduleTable();
+      renderCanvas();
+      showToast('已完成智慧自動排班！可依需要手動微調');
+    }
+
+    // ---------- Canvas Image Generator (JPG / PNG) ----------
+    function renderCanvas() {
+      const canvas = document.getElementById('scheduleCanvas');
+      const ctx = canvas.getContext('2d');
+
+      const showTitle = document.getElementById('chkShowTitle').checked;
+      const titleText = document.getElementById('exportTitleInput').value.trim() || `${getMonthLabel()}服事表`;
+      const classicStyle = document.getElementById('chkClassicStyle').checked;
+
+      document.getElementById('exportTitleInput').disabled = !showTitle;
+
+      const firstColW = 190;
+      const dateColW = 200;
+      const rowH = 82;
+      const headerH = 86;
+      const titleH = showTitle ? 90 : 0;
+
+      const totalW = firstColW + state.dates.length * dateColW;
+      const totalH = titleH + headerH + state.roles.length * rowH;
+
+      canvas.width = totalW;
+      canvas.height = totalH;
+
+      // Solid white background (essential for clean JPG export)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, totalW, totalH);
+
+      const headerBg = classicStyle ? '#000000' : '#0f172a';
+      const borderColor = classicStyle ? '#e5e7eb' : '#cbd5e1';
+      const textColor = '#111827';
+
+      if (showTitle) {
+        ctx.fillStyle = headerBg;
+        ctx.fillRect(0, 0, totalW, titleH);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 34px "Noto Sans TC", "Inter", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(titleText, totalW / 2, titleH / 2);
+      }
+
+      const startY = titleH;
+
+      ctx.fillStyle = headerBg;
+      ctx.fillRect(0, startY, totalW, headerH);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 28px "Noto Sans TC", "Inter", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('日期', firstColW / 2, startY + headerH / 2);
+
+      state.dates.forEach((d, idx) => {
+        const x = firstColW + idx * dateColW + dateColW / 2;
+        ctx.fillText(d, x, startY + headerH / 2);
+      });
+
+      state.roles.forEach((role, rIdx) => {
+        const y = startY + headerH + rIdx * rowH;
+
+        ctx.fillStyle = headerBg;
+        ctx.fillRect(0, y, firstColW, rowH);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 28px "Noto Sans TC", "Inter", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(role, firstColW / 2, y + rowH / 2);
+
+        state.dates.forEach((d, cIdx) => {
+          const x = firstColW + cIdx * dateColW;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x, y, dateColW, rowH);
+
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, dateColW, rowH);
+
+          const person = (state.schedule[d] && state.schedule[d][role]) ? state.schedule[d][role] : '';
+          if (person) {
+            ctx.fillStyle = textColor;
+            ctx.font = '500 28px "Noto Sans TC", "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(person, x + dateColW / 2, y + rowH / 2);
+          }
+        });
+      });
+    }
+
+    // ---------- Event Listeners ----------
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        const isTarget = b.dataset.tab === tabName;
+        b.classList.toggle('active', isTarget);
+        b.classList.toggle('text-slate-600', !isTarget);
+      });
+      document.querySelectorAll('.tab-panel').forEach(p => {
+        p.classList.toggle('hidden', p.id !== `tab-${tabName}`);
+      });
+      if (tabName === 'export') renderCanvas();
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    document.getElementById('btnGoExport').addEventListener('click', () => switchTab('export'));
+
+    document.getElementById('btnResetDates').addEventListener('click', () => {
+      state.month = document.getElementById('monthInput').value || state.month;
+      state.weekday = Number(document.getElementById('weekdaySelect').value);
+      state.dates = generateDatesForMonth(state.month, state.weekday);
+      saveState();
+      renderAll();
+      showToast(`已更新為 ${getMonthLabel()} 的排班日期`);
+    });
+
+    document.getElementById('monthInput').addEventListener('change', (e) => {
+      state.month = e.target.value;
+      state.dates = generateDatesForMonth(state.month, state.weekday);
+      saveState();
+      renderAll();
+    });
+
+    document.getElementById('weekdaySelect').addEventListener('change', (e) => {
+      state.weekday = Number(e.target.value);
+      state.dates = generateDatesForMonth(state.month, state.weekday);
+      saveState();
+      renderAll();
+    });
+
+    document.getElementById('customDateInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); document.getElementById('btnAddDate').click(); }
+    });
+
+    document.getElementById('btnAddDate').addEventListener('click', () => {
+      const val = document.getElementById('customDateInput').value.trim();
+      if (!val) return;
+      if (!state.dates.includes(val)) {
+        state.dates.push(val);
+        saveState();
+        renderAll();
+      }
+      document.getElementById('customDateInput').value = '';
+    });
+
+    document.getElementById('btnCopyReplyUrl').addEventListener('click', () => {
+      copyText(getReplyUrl(), '已複製同工回覆網址！');
+    });
+
+    document.getElementById('btnCopyAsk').addEventListener('click', () => {
+      copyText(document.getElementById('lineAskText').value, '已複製 LINE 詢問訊息！');
+    });
+
+    document.getElementById('btnShareAskLine').addEventListener('click', () => {
+      shareToLine(document.getElementById('lineAskText').value);
+    });
+
+    document.getElementById('filterRoleGroup').addEventListener('change', renderGroupedAvailability);
+    document.getElementById('filterStatus').addEventListener('change', renderGroupedAvailability);
+    document.getElementById('searchMember').addEventListener('input', renderGroupedAvailability);
+
+    document.getElementById('btnMarkAllAvailable').addEventListener('click', () => {
+      if (!confirm('確定把所有同工都設為本月皆可？會覆蓋已回報的內容。')) return;
+      state.members.forEach(m => {
+        state.replies[m.id] = { replied: true, availableDates: [...state.dates] };
+      });
+      saveState();
+      renderAll();
+      showToast('已將所有同工設為本月皆可');
+    });
+
+    document.getElementById('btnClearReplies').addEventListener('click', () => {
+      if (!confirm('確定清空本月所有回報？所有人都會看到這個變更。')) return;
+      state.members.forEach(m => {
+        state.replies[m.id] = { replied: false, availableDates: [] };
+      });
+      saveState();
+      renderAll();
+      showToast('已清空本月回報紀錄');
+    });
+
+    document.getElementById('btnAutoSchedule').addEventListener('click', () => {
+      const hasAny = Object.values(state.schedule || {}).some(day => Object.values(day || {}).some(Boolean));
+      if (hasAny && !confirm('自動排班會取代目前的排班內容，確定要繼續？')) return;
+      autoSchedule();
+    });
+
+    document.getElementById('btnClearSchedule').addEventListener('click', () => {
+      if (!confirm('確定清空整個月的排班？所有人都會看到這個變更。')) return;
+      state.schedule = {};
+      saveState();
+      renderScheduleTable();
+      renderCanvas();
+      showToast('已清空目前排班');
+    });
+
+    document.getElementById('chkShowTitle').addEventListener('change', renderCanvas);
+    document.getElementById('exportTitleInput').addEventListener('input', renderCanvas);
+    document.getElementById('chkClassicStyle').addEventListener('change', renderCanvas);
+
+    document.getElementById('btnDownloadJpg').addEventListener('click', () => {
+      renderCanvas();
+      const canvas = document.getElementById('scheduleCanvas');
+      const link = document.createElement('a');
+      link.download = `${getMonthLabel()}服事表.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+      showToast('已開始下載 JPG 服事表圖片');
+    });
+
+    document.getElementById('btnDownloadPng').addEventListener('click', () => {
+      renderCanvas();
+      const canvas = document.getElementById('scheduleCanvas');
+      const link = document.createElement('a');
+      link.download = `${getMonthLabel()}服事表.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('已開始下載 PNG 服事表圖片');
+    });
+
+    document.getElementById('btnCopyLineSummary').addEventListener('click', () => {
+      const lines = [`【${getMonthLabel()}教會服事表】`];
+      state.dates.forEach(d => {
+        lines.push(`\n📅 ${d}`);
+        const daySched = state.schedule[d] || {};
+        state.roles.forEach(r => {
+          if (daySched[r]) lines.push(`${r}：${daySched[r]}`);
+        });
+      });
+      copyText(lines.join('\n'), '已複製純文字服事表！');
+    });
+
+    function addRole() {
+      const input = document.getElementById('newRoleInput');
+      const val = input.value.trim();
+      if (!val) {
+        showToast('請先輸入分類名稱，例如：招待');
+        input.focus();
+        return;
+      }
+      if (state.roles.includes(val)) {
+        showToast(`已經有「${val}」這個分類了`);
+        flashRoleCard(val);
+        return;
+      }
+      state.roles.push(val);
+      input.value = '';
+      input.blur();
+      saveState();
+      renderAll();
+      showToast(`已新增工作分類「${val}」`);
+      flashRoleCard(val);
+    }
+
+    // 新增後捲到該分類卡片並短暫標示，手機上才看得到
+    function flashRoleCard(role) {
+      const card = document.querySelector(`#hrCardsContainer [data-role="${CSS.escape(role)}"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('ring-2', 'ring-emerald-500');
+      setTimeout(() => card.classList.remove('ring-2', 'ring-emerald-500'), 2000);
+    }
+
+    document.getElementById('btnAddRole').addEventListener('click', addRole);
+    document.getElementById('btnAddPerson').addEventListener('click', addPerson);
+    document.getElementById('newPersonInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addPerson(); }
+    });
+    document.getElementById('peopleSearch').addEventListener('input', renderPeople);
+    document.getElementById('peopleStatusFilter').addEventListener('change', renderPeople);
+    document.getElementById('peopleRoleFilter').addEventListener('change', renderPeople);
+    document.getElementById('newRoleInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addRole(); }
+    });
+
+    document.getElementById('btnExportJson').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `教會服事排班備份_${state.month}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('已匯出設定與排班備份');
+    });
+
+    document.getElementById('importJsonInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (parsed && Array.isArray(parsed.roles) && Array.isArray(parsed.members)) {
+            state = normalizeState(parsed);
+            saveState();
+            renderAll();
+            showToast('已成功匯入備份資料');
+          } else {
+            showToast('檔案格式不正確');
+          }
+        } catch (err) {
+          showToast('讀取檔案失敗');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    // 連線與分享連結
+    document.getElementById('btnOpenSync').addEventListener('click', () => {
+      updateSyncUI();
+      document.getElementById('syncModal').classList.remove('hidden');
+    });
+
+    document.getElementById('btnCloseSync').addEventListener('click', () => {
+      document.getElementById('syncModal').classList.add('hidden');
+    });
+
+    document.getElementById('btnCopyAdminLink').addEventListener('click', () => {
+      if (getAdminUrl()) copyText(getAdminUrl(), '已複製管理連結（只給排班同工）');
+    });
+
+    document.getElementById('btnCopyReplyLink').addEventListener('click', () => {
+      if (getReplyKey()) copyText(getReplyUrl(), '已複製回覆連結');
+    });
+
+    document.getElementById('btnPullCloud').addEventListener('click', () => pullFromCloud(false));
+
+    function openWithKey() {
+      const k = keyFromText(document.getElementById('lockInput').value);
+      if (!k) { showToast('連結不完整，請貼上完整的管理連結'); return; }
+      location.hash = 'k=' + k;
+      location.reload();
+    }
+    document.getElementById('btnLockGo').addEventListener('click', openWithKey);
+    document.getElementById('lockInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) openWithKey(); });
+
+    // ---------- Boot ----------
+    loadState();
+    lastSyncedFlat = flattenState(state);
+    renderAll();
+    if (syncUrl) {
+      pullFromCloud(true);
+      startLiveSync();
+    } else {
+      showLock();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>服事時間回覆｜教會服事排班</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .date-btn[aria-pressed="true"] {
+      background-color: #0f172a;
+      border-color: #0f172a;
+      color: #ffffff;
+    }
+    .date-btn[aria-pressed="true"] .mark { visibility: visible; }
+    .date-btn .mark { visibility: hidden; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <main class="max-w-md mx-auto px-4 py-6 space-y-4">
+
+    <header class="flex items-center gap-2.5">
+      <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shrink-0">服</div>
+      <div>
+        <h1 id="pageTitle" class="text-lg font-bold leading-tight">服事時間回覆</h1>
+        <p class="text-xs text-slate-500">勾選你可以服事的日期，送出後同工會自動看到</p>
+      </div>
+    </header>
+
+    <!-- Loading / error -->
+    <div id="loadingBox" class="bg-white rounded-xl border border-slate-200 p-6 text-center text-sm text-slate-500 shadow-sm">
+      讀取中…
+    </div>
+    <div id="errorBox" class="hidden bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-4 text-sm"></div>
+
+    <!-- Form -->
+    <section id="formBox" class="hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-2">
+        <label for="memberSelect" class="block text-sm font-bold">1. 你是哪一位？</label>
+        <select id="memberSelect" class="w-full text-base border border-slate-300 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-slate-900">
+          <option value="">— 請選擇你的名字 —</option>
+        </select>
+        <p id="prevReplyNote" class="hidden text-xs text-emerald-700 bg-emerald-50 rounded-lg px-2.5 py-1.5"></p>
+      </div>
+
+      <div id="datesCard" class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3 opacity-40 pointer-events-none">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-bold">2. 哪幾天可以服事？</span>
+          <div class="flex gap-1.5">
+            <button id="btnAll" type="button" class="text-xs px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-slate-100">全部可以</button>
+            <button id="btnNone" type="button" class="text-xs px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-slate-100">都不行</button>
+          </div>
+        </div>
+        <div id="datesGrid" class="grid grid-cols-2 gap-2"></div>
+        <p class="text-xs text-slate-500">點一下選取，再點一下取消。沒有任何一天可以，直接送出即可。</p>
+      </div>
+
+      <button id="btnSubmit" type="button" disabled class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white text-base font-semibold shadow-sm transition">
+        送出回覆
+      </button>
+    </section>
+
+    <!-- Done -->
+    <section id="doneBox" class="hidden bg-white rounded-xl border border-emerald-200 p-5 shadow-sm space-y-3 text-center">
+      <div class="text-3xl">🙏</div>
+      <h2 class="text-base font-bold text-emerald-800">已收到你的回覆，謝謝！</h2>
+      <p id="doneSummary" class="text-sm text-slate-700"></p>
+      <button id="btnEditAgain" type="button" class="text-sm px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-100">修改回覆</button>
+    </section>
+
+  </main>
+
+  <script>
+    // 只讀寫「回覆區」：/r/<回覆密碼>，密碼在回覆連結 # 後面（程式碼裡不含任何資料位置）
+    const DB_BASE = 'https://church-ministry-schedule-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const LAST_MEMBER_KEY = 'church_reply_last_member_v1';
+    const REPLY_KEY_STORE = 'church_reply_key_v1';
+    function keyFromText(text) {
+      const m = String(text || '').match(/[#&?]k=([A-Za-z0-9_-]{20,})/);
+      return m ? m[1] : '';
+    }
+    let replyKey = keyFromText(location.hash);
+    try {
+      if (replyKey) localStorage.setItem(REPLY_KEY_STORE, replyKey);
+      else replyKey = localStorage.getItem(REPLY_KEY_STORE) || '';
+    } catch (e) {}
+    const AREA_URL = `${DB_BASE}/r/${replyKey}`;
+    const WEEKDAY = ['日', '一', '二', '三', '四', '五', '六'];
+
+    // Firebase key 編碼（需與主頁相同）
+    const encKey = k => String(k).replace(/[%.#$\[\]\/]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'));
+    const decKey = k => { try { return decodeURIComponent(k); } catch (e) { return k; } };
+    const toArr = v => Array.isArray(v) ? v.filter(x => x != null) : (v && typeof v === 'object' ? Object.values(v) : []);
+
+    let data = { month: '', dates: [], roles: [], members: [], replies: {} };
+    let selected = new Set();
+    let currentId = '';
+
+    const $ = id => document.getElementById(id);
+
+    function dateLabel(d) {
+      const [y] = String(data.month || '').split('-').map(Number);
+      const m = String(d).match(/^(\d{1,2})[\/.\-](\d{1,2})$/);
+      if (!m || !y) return d;
+      const dt = new Date(y, Number(m[1]) - 1, Number(m[2]));
+      return `${d}（${WEEKDAY[dt.getDay()]}）`;
+    }
+
+    function monthLabel() {
+      const [, m] = String(data.month || '').split('-').map(Number);
+      return m ? `${m}月` : '本月';
+    }
+
+    async function load() {
+      if (!replyKey) {
+        showError('請使用 LINE 群組裡的「回覆連結」開啟這個頁面。');
+        return;
+      }
+      try {
+        const res = await fetch(AREA_URL + '.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const area = await res.json();
+        const raw = area && area.view;
+        if (!raw || !raw.people) {
+          showError('這個回覆連結找不到資料，請向排班同工索取最新的回覆連結。');
+          return;
+        }
+        data.month = raw.month || '';
+        data.dates = toArr(raw.dates);
+        data.roles = toArr(raw.roles);
+        // 名單已由排班頁整理好：暫停的同工與項目不會出現在這裡
+        data.members = toArr(raw.people).map(m => ({ ...m, roles: toArr(m.roles) })).filter(m => m.roles.length > 0);
+        raw.replies = area.replies || {};
+        data.replies = {};
+        Object.entries(raw.replies || {}).forEach(([id, r]) => {
+          data.replies[decKey(id)] = { replied: !!(r && r.replied), availableDates: toArr(r && r.availableDates) };
+        });
+        render();
+      } catch (e) {
+        showError('讀取失敗，請確認網路後重新整理頁面。');
+      }
+    }
+
+    function showError(msg) {
+      $('loadingBox').classList.add('hidden');
+      $('errorBox').textContent = msg;
+      $('errorBox').classList.remove('hidden');
+    }
+
+    function render() {
+      $('loadingBox').classList.add('hidden');
+      $('formBox').classList.remove('hidden');
+      $('pageTitle').textContent = `【${monthLabel()}】服事時間回覆`;
+      document.title = `${monthLabel()}服事時間回覆`;
+
+      // 依工作分類順序排列，名字後面標出負責的服事
+      const roleIdx = r => { const i = data.roles.indexOf(r); return i < 0 ? 999 : i; };
+      const sorted = [...data.members].sort((a, b) => {
+        const ra = Math.min(...a.roles.map(roleIdx), 999);
+        const rb = Math.min(...b.roles.map(roleIdx), 999);
+        return ra - rb || a.name.localeCompare(b.name, 'zh-Hant');
+      });
+      const sel = $('memberSelect');
+      sel.innerHTML = '<option value="">— 請選擇你的名字 —</option>';
+      sorted.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        const shown = [...new Set(m.roles.map(r => r.replace(/\d+$/, '')))];
+        opt.textContent = shown.length ? `${m.name}（${shown.join('、')}）` : m.name;
+        sel.appendChild(opt);
+      });
+
+      if (data.dates.length === 0) {
+        $('datesGrid').innerHTML = '<p class="col-span-2 text-sm text-rose-600">本月尚未設定服事日期，請洽排班同工。</p>';
+      }
+
+      let last = '';
+      try { last = localStorage.getItem(LAST_MEMBER_KEY) || ''; } catch (e) {}
+      if (last && data.members.some(m => m.id === last)) {
+        sel.value = last;
+        chooseMember(last);
+      }
+    }
+
+    function renderDates() {
+      const grid = $('datesGrid');
+      if (data.dates.length === 0) return;
+      grid.innerHTML = '';
+      data.dates.forEach(d => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'date-btn flex items-center justify-between gap-2 px-3 py-3 rounded-xl border border-slate-300 bg-white text-base font-semibold transition';
+        btn.setAttribute('aria-pressed', selected.has(d) ? 'true' : 'false');
+        btn.innerHTML = `<span></span><span class="mark">✓</span>`;
+        btn.firstChild.textContent = dateLabel(d);
+        btn.addEventListener('click', () => {
+          if (selected.has(d)) selected.delete(d); else selected.add(d);
+          btn.setAttribute('aria-pressed', selected.has(d) ? 'true' : 'false');
+        });
+        grid.appendChild(btn);
+      });
+    }
+
+    function chooseMember(id) {
+      currentId = id;
+      const card = $('datesCard');
+      const note = $('prevReplyNote');
+      if (!id) {
+        card.classList.add('opacity-40', 'pointer-events-none');
+        $('btnSubmit').disabled = true;
+        note.classList.add('hidden');
+        return;
+      }
+      const rep = data.replies[id];
+      selected = new Set(rep && rep.replied ? rep.availableDates.filter(d => data.dates.includes(d)) : []);
+      if (rep && rep.replied) {
+        note.textContent = '你已經回覆過，下面是目前的紀錄，可以修改後重新送出。';
+        note.classList.remove('hidden');
+      } else {
+        note.classList.add('hidden');
+      }
+      card.classList.remove('opacity-40', 'pointer-events-none');
+      $('btnSubmit').disabled = false;
+      renderDates();
+    }
+
+    async function submit() {
+      if (!currentId) return;
+      const btn = $('btnSubmit');
+      btn.disabled = true;
+      btn.textContent = '送出中…';
+      const available = data.dates.filter(d => selected.has(d));
+      const payload = {};
+      payload[encKey(currentId)] = {
+        replied: true,
+        availableDates: available,
+        via: 'online',
+        at: Date.now()
+      };
+      try {
+        const res = await fetch(AREA_URL + '/replies.json', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        try { localStorage.setItem(LAST_MEMBER_KEY, currentId); } catch (e) {}
+        data.replies[currentId] = { replied: true, availableDates: available };
+        const m = data.members.find(x => x.id === currentId);
+        $('doneSummary').textContent = available.length
+          ? `${m ? m.name : ''}：${available.map(dateLabel).join('、')} 可以服事`
+          : `${m ? m.name : ''}：${monthLabel()}都不方便`;
+        $('formBox').classList.add('hidden');
+        $('doneBox').classList.remove('hidden');
+        window.scrollTo(0, 0);
+      } catch (e) {
+        $('errorBox').textContent = '送出失敗，請確認網路後再按一次「送出回覆」。';
+        $('errorBox').classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '送出回覆';
+      }
+    }
+
+    $('memberSelect').addEventListener('change', e => chooseMember(e.target.value));
+    $('btnAll').addEventListener('click', () => { selected = new Set(data.dates); renderDates(); });
+    $('btnNone').addEventListener('click', () => { selected = new Set(); renderDates(); });
+    $('btnSubmit').addEventListener('click', submit);
+    $('btnEditAgain').addEventListener('click', () => {
+      $('doneBox').classList.add('hidden');
+      $('errorBox').classList.add('hidden');
+      $('formBox').classList.remove('hidden');
+      chooseMember(currentId);
+    });
+
+    load();
+  </script>
+</body>
+</html>
